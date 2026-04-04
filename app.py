@@ -1,12 +1,15 @@
 from flask import Flask, render_template, request, redirect
 import sqlite3
 from datetime import datetime
+import os
 
 app = Flask(__name__)
 
+DB_NAME = "expenses.db"
+
 # Initialize Database
 def init_db():
-    conn = sqlite3.connect('expenses.db')
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
     c.execute('''
@@ -25,10 +28,11 @@ def init_db():
 
 init_db()
 
+
 # Home Page
 @app.route('/')
 def index():
-    conn = sqlite3.connect('expenses.db')
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
     c.execute("SELECT * FROM expenses ORDER BY id DESC")
@@ -45,13 +49,13 @@ def index():
 # Add Expense
 @app.route('/add', methods=['POST'])
 def add():
-    name = request.form['name']
-    title = request.form['title']
-    amount = request.form['amount']
-    location = request.form['location']
+    name = request.form.get('name')
+    title = request.form.get('title')
+    amount = request.form.get('amount')
+    location = request.form.get('location')
     date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    conn = sqlite3.connect('expenses.db')
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
     c.execute(
@@ -65,5 +69,7 @@ def add():
     return redirect('/')
 
 
-if __name__ == '__main__':
-    app.run(debug=True)
+# Run App (LOCAL + RENDER COMPATIBLE)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))  # Render uses PORT env
+    app.run(host="0.0.0.0", port=port)
