@@ -1,13 +1,21 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, session
 import sqlite3
 from datetime import datetime
 import os
 
 app = Flask(__name__)
+app.secret_key = "secret123"   # required for login session
 
 DB_NAME = "expenses.db"
 
-# Initialize Database
+# Static users (your requirement)
+USERS = {
+    "neel": "neel@2026",
+    "smit": "smit@2026",
+    "suresh": "suresh@2026"
+}
+
+# Initialize DB (removed name column)
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -15,7 +23,6 @@ def init_db():
     c.execute('''
         CREATE TABLE IF NOT EXISTS expenses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
             title TEXT,
             amount REAL,
             location TEXT,
@@ -29,9 +36,35 @@ def init_db():
 init_db()
 
 
-# Home Page
-@app.route('/')
-def index():
+# 🔐 LOGIN PAGE
+@app.route('/', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        if username in USERS and USERS[username] == password:
+            session['user'] = username
+            return redirect('/dashboard')
+        else:
+            return render_template('login.html', error="Invalid credentials")
+
+    return render_template('login.html')
+
+
+# 🚪 LOGOUT
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    return redirect('/')
+
+
+# 🏠 DASHBOARD
+@app.route('/dashboard')
+def dashboard():
+    if 'user' not in session:
+        return redirect('/')
+
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
@@ -43,33 +76,35 @@ def index():
 
     conn.close()
 
-    return render_template('index.html', expenses=expenses, total=total or 0)
+    return render_template('index.html', expenses=expenses, total=total or 0, user=session['user'])
 
 
-# Add Expense
+# ➕ ADD EXPENSE
 @app.route('/add', methods=['POST'])
 def add():
-    name = request.form.get('name')
-    title = request.form.get('title')
-    amount = request.form.get('amount')
-    location = request.form.get('location')
+    if 'user' not in session:
+        return redirect('/')
+
+    title = request.form['title']
+    amount = request.form['amount']
+    location = request.form['location']
     date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
     c.execute(
-        "INSERT INTO expenses (name, title, amount, location, date) VALUES (?, ?, ?, ?, ?)",
-        (name, title, amount, location, date)
+        "INSERT INTO expenses (title, amount, location, date) VALUES (?, ?, ?, ?)",
+        (title, amount, location, date)
     )
 
     conn.commit()
     conn.close()
 
-    return redirect('/')
+    return redirect('/dashboard')
 
 
-# Run App (LOCAL + RENDER COMPATIBLE)
+# Run app
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # Render uses PORT env
+    port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
