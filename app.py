@@ -4,18 +4,18 @@ from datetime import datetime
 import os
 
 app = Flask(__name__)
-app.secret_key = "secret123"   # required for login session
+app.secret_key = "secret123"
 
 DB_NAME = "expenses.db"
 
-# Static users (your requirement)
+# Users
 USERS = {
     "neel": "neel@2026",
     "smit": "smit@2026",
     "suresh": "suresh@2026"
 }
 
-# Initialize DB (removed name column)
+# Initialize DB
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -30,13 +30,15 @@ def init_db():
         )
     ''')
 
+    # Optional: delete data older than 1 year
+    c.execute("DELETE FROM expenses WHERE date < date('now', '-365 days')")
+
     conn.commit()
     conn.close()
 
 init_db()
 
-
-# 🔐 LOGIN PAGE
+# 🔐 LOGIN
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -59,7 +61,7 @@ def logout():
     return redirect('/')
 
 
-# 🏠 DASHBOARD
+# 🏠 DASHBOARD (ONLY TODAY DATA)
 @app.route('/dashboard')
 def dashboard():
     if 'user' not in session:
@@ -68,15 +70,30 @@ def dashboard():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
-    c.execute("SELECT * FROM expenses ORDER BY id DESC")
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    # Only today's data
+    c.execute(
+        "SELECT * FROM expenses WHERE date LIKE ? ORDER BY id DESC",
+        (today + '%',)
+    )
     expenses = c.fetchall()
 
-    c.execute("SELECT SUM(amount) FROM expenses")
+    # Today's total
+    c.execute(
+        "SELECT SUM(amount) FROM expenses WHERE date LIKE ?",
+        (today + '%',)
+    )
     total = c.fetchone()[0]
 
     conn.close()
 
-    return render_template('index.html', expenses=expenses, total=total or 0, user=session['user'])
+    return render_template(
+        'index.html',
+        expenses=expenses,
+        total=total or 0,
+        user=session['user']
+    )
 
 
 # ➕ ADD EXPENSE
@@ -104,7 +121,24 @@ def add():
     return redirect('/dashboard')
 
 
-# Run app
+# 📅 HISTORY PAGE (ALL DATA)
+@app.route('/history')
+def history():
+    if 'user' not in session:
+        return redirect('/')
+
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM expenses ORDER BY date DESC")
+    data = c.fetchall()
+
+    conn.close()
+
+    return render_template('history.html', data=data, user=session['user'])
+
+
+# RUN APP
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
