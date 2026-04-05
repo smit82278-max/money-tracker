@@ -1,5 +1,13 @@
 <div class="d-flex justify-content-between mb-3">
     <h4>Welcome, {{ user }}</h4>
+    <div>
+        <a href="/history" class="btn btn-info">History</a>
+        <a href="/logout" class="btn btn-danger">Logout</a>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between mb-3">
+    <h4>Welcome, {{ user }}</h4>
     <a href="/logout" class="btn btn-danger">Logout</a>
 </div>
 <!DOCTYPE html>
@@ -45,7 +53,6 @@
         <table class="table table-bordered bg-white">
             <thead class="table-dark">
                 <tr>
-                    <th>Name</th>
                     <th>Title</th>
                     <th>Amount</th>
                     <th>Location</th>
